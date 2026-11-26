@@ -1,8 +1,8 @@
 # 🌹 Para María
 
-Vídeo vertical estilo TikTok hecho en ASCII. Un ramo de rosas en 3D sube desde abajo, se abre y gira mientras suena
-"Coming Up Roses" de Harry Styles, desde el instrumental anterior a "It's only me and you". Van saliendo los mensajes,
-el ramo se deshace en caracteres que forman la Moncloa y al final aparece "Muchas gracias por tu contribución".
+Animación en ASCII a pantalla completa. Un ramo de rosas en 3D sube desde abajo, se abre y gira mientras suena
+"Coming Up Roses" de Harry Styles, desde el instrumental anterior a "It's only me and you". Los mensajes también
+salen en ASCII, el ramo se deshace en caracteres que forman la Moncloa y al final aparece "¡Muchas gracias por tu contribución!".
 Dura unos 87 segundos.
 
 ## Cómo verlo
@@ -30,7 +30,6 @@ La página lleva `noindex` para que no aparezca en buscadores. Aun así, la URL 
 - Primero sale una portada: "Tienes un regalo, María". Al tocarla empieza todo (los móviles exigen un toque para reproducir sonido).
 - Si el móvil no deja arrancar la música desde ese toque (pasa en algunos iPhone), aparece el reproductor de YouTube
   para pulsar ▶. Después desaparece y la animación sigue sincronizada.
-- Doble toque en la pantalla: corazón, como en TikTok.
 - Al terminar aparece "↻ Ver otra vez".
 
 ### Probar en local, sin música
@@ -43,7 +42,8 @@ npm run serve        # http://localhost:8080
 
 ## Personalizar
 
-Todo está en `src/config.js`: textos, tiempos de cada frase, vídeo de YouTube y la descripción del "TikTok".
+Todo está en `src/config.js`: textos, tiempos de cada frase y vídeo de YouTube.
+Los textos se dibujan con la misma fuente monoespaciada que el ramo, así que mejor sin emojis (`<3` y `@}->--` sí).
 Los tiempos son segundos del vídeo oficial.
 
 ## Desarrollo

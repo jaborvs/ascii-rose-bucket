@@ -1,11 +1,11 @@
 # Ramo de rosas ASCII para María — diseño
 
 ## Objetivo
-Página web vertical (9:16, estética TikTok) que se abre desde un enlace en el móvil o en el ordenador:
+Página web a pantalla completa que se abre desde un enlace en el móvil o en el ordenador:
 ramo de rosas ASCII en 3D que sube desde abajo, florece y gira, sincronizado con
 "Coming Up Roses" (Harry Styles) desde la sección instrumental previa a "It's only me and you";
 mensajes de orgullo; el ramo se deshace en caracteres que forman el Palacio de la Moncloa + "LA MONCLOA";
-cierre con "Muchas gracias por tu contribución".
+cierre con "¡Muchas gracias por tu contribución!".
 
 ## Decisiones
 - **Sin build ni dependencias**: HTML + ES modules. Se publica tal cual en GitHub Pages.
@@ -19,9 +19,11 @@ cierre con "Muchas gracias por tu contribución".
 - **Tiempos** (segundos del vídeo oficial, medidos con transcripción por palabras):
   "There's only me and you" ≈ 147.9 s → instrumental 152.5–204.5 s → "It's only me and you" ≈ 204.5 s
   → caída 210–211 s → "la-la-la" 212–238 s → fin ≈ 239 s.
-- **Render**: rejilla fija 64×68 celdas sobre `<canvas>`; rosas como superficie paramétrica
+- **Render**: rejilla sobre `<canvas>` que llena la pantalla; el ramo y el logo se diseñan para una caja de
+  58×64 celdas centrada y lo que sobra queda de margen. Rosas como superficie paramétrica
   (rosa "MATLAB"), z-buffer y sombreado por luminancia con rampa de caracteres; tallos con `| / \`.
-- **Texto**: subtítulos HTML grandes estilo TikTok (legibles en móvil); el logo final va en la rejilla.
+- **Texto**: subtítulos en ASCII con la misma fuente que el ramo (más grande), dentro de un marco `+--+`;
+  las letras recién escritas pasan por la rampa de caracteres antes de fijarse.
 - **Privacidad**: solo nombre de pila y apodo; `noindex`.
 
 ## Módulos
@@ -33,4 +35,5 @@ cierre con "Muchas gracias por tu contribución".
 | `src/raster.js` | Rejilla con z-buffer, rampa de luminancia | sí |
 | `src/morph.js` | Plan de partículas ramo → logo | sí |
 | `src/art.js` | Arte ASCII de la Moncloa con colores | sí |
-| `src/player.js`, `src/main.js` | YouTube, bucle de render, UI TikTok | navegador |
+| `src/caption.js` | Maquetación del subtítulo ASCII: ajuste de línea y marco | sí |
+| `src/player.js`, `src/main.js` | YouTube, bucle de render, escenas | navegador |

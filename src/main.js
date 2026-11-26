@@ -1,29 +1,35 @@
-import { SONG, CUES, CAPTIONS, TIKTOK } from './config.js';
+import { SONG, CUES, CAPTIONS } from './config.js';
 import { createSongClock } from './clock.js';
 import { phaseAt, captionAt, ramp } from './timeline.js';
 import { buildBouquetModel } from './rose.js';
-import { createGrid, clearGrid, renderModel, gridCells } from './raster.js';
+import { createGrid, clearGrid, renderModel, gridCells, CELL_ASPECT } from './raster.js';
 import { planMorph, particleAt } from './morph.js';
 import { MONCLOA, artCells } from './art.js';
-import { PALETTE, LEVELS } from './materials.js';
+import { PALETTE, LEVELS, MAT } from './materials.js';
+import { layoutCaption } from './caption.js';
 import { createYouTubePlayer } from './player.js';
 
-const COLS = 64;
-const ROWS = 68;
+// Caja de diseño: el ramo y el logo se dibujan para caber en DESIGN_COLS × DESIGN_ROWS celdas.
+// La rejilla real llena toda la pantalla; lo que sobra queda como margen alrededor.
+const DESIGN_COLS = 62;
+const DESIGN_ROWS = 64;
 const FONT = '"DejaVu Sans Mono", Menlo, Consolas, "Courier New", monospace';
 const BLOOM_STEPS = 16;
-const ART_TOP = 15;
-const VIEW = { scale: 18, cx: 30, cy: 43 };
+const BOUQUET_SCALE = 20.5;
 const CLIMAX = 204.5; // "It's only me and you"
 const SHOW_PLAYER_AFTER_MS = 3000;
 const FRAME_MS = 1000 / 30;
+const CAPTION_SCALE = { md: 1.8, lg: 2.3 }; // tamaño de letra del subtítulo, en celdas de la rejilla
+const SCRAMBLE = '.:-=+*#%@';
+const SCRAMBLE_TAIL = 3;
 
 const $ = id => document.getElementById(id);
 const canvas = $('screen');
 const ctx = canvas.getContext('2d');
-const grid = createGrid(COLS, ROWS);
 const clock = createSongClock({ start: CUES.start });
-const art = artCells(MONCLOA, { cols: COLS, top: ART_TOP });
+let grid = createGrid(1, 1);
+let art = [];
+let view = { scale: BOUQUET_SCALE, cx: 0, cy: 0 };
 
 let player = null;
 let silent = false;
@@ -33,14 +39,11 @@ let morphPlan = null;
 let lastTick = performance.now();
 let lastRender = 0;
 let cell = { w: 0, h: 0 };
-let captionKey = '';
+let fontPx = 10;
+const captionLayouts = new Map();
 
 const easeOutCubic = t => 1 - (1 - t) ** 3;
 const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-$('handle').textContent = TIKTOK.handle;
-$('desc').textContent = TIKTOK.description;
-$('song').textContent = `${SONG.title}   ·   ${SONG.title}`;
 
 // ---------- Canvas ----------
 
@@ -50,10 +53,20 @@ function resize() {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  cell = { w: width / COLS, h: height / ROWS };
+
+  const w = Math.min(width / DESIGN_COLS, (height / DESIGN_ROWS) * CELL_ASPECT);
+  cell = { w, h: w / CELL_ASPECT };
+  const cols = Math.ceil(width / cell.w);
+  const rows = Math.ceil(height / cell.h);
+  grid = createGrid(cols, rows);
+  view = { scale: BOUQUET_SCALE, cx: cols / 2, cy: Math.round(rows * 0.62) };
+  art = artCells(MONCLOA, { cols, top: Math.round(rows * 0.52) - MONCLOA.height });
+  morphPlan = null;
+
   ctx.font = `bold 100px ${FONT}`;
   const ratio = ctx.measureText('M').width / 100;
-  ctx.font = `bold ${Math.min(cell.w / ratio, cell.h * 1.1)}px ${FONT}`;
+  fontPx = Math.min(cell.w / ratio, cell.h * 1.1);
+  ctx.font = `bold ${fontPx}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   lastRender = 0;
@@ -65,9 +78,9 @@ function drawChar(ch, x, y, mat, lum) {
 }
 
 function drawGrid() {
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const i = r * COLS + c;
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      const i = r * grid.cols + c;
       if (grid.z[i] > 0) drawChar(grid.ch[i], c, r, grid.mat[i], grid.lum[i]);
     }
   }
@@ -85,18 +98,18 @@ function renderBouquet(t) {
   const pulse = t > CLIMAX ? Math.exp(-(t - CLIMAX) * 2.5) : 0;
   clearGrid(grid);
   renderModel(grid, buildBouquetModel(bloomAt(t)), {
-    ...VIEW,
+    ...view,
     rotY: 0.55 * (t - CUES.start),
     tiltX: 0.6 + 0.05 * Math.sin(t * 0.7),
     offsetY: -5 * (1 - rise),
-    scale: VIEW.scale * (1 + 0.07 * pulse),
+    scale: view.scale * (1 + 0.07 * pulse),
   });
 }
 
 function drawMorph(t) {
   if (!morphPlan) {
     renderBouquet(CUES.morphStart);
-    morphPlan = planMorph(gridCells(grid), art, { cols: COLS, rows: ROWS, seed: 2026 });
+    morphPlan = planMorph(gridCells(grid), art, { cols: grid.cols, rows: grid.rows, seed: 2026 });
   }
   const p = ramp(t, CUES.morphStart, CUES.morphEnd);
   for (const particle of morphPlan) {
@@ -117,28 +130,54 @@ function drawLogo(t, alpha) {
   ctx.globalAlpha = 1;
 }
 
-function updateCaption(t) {
-  const el = $('caption');
+// Subtítulo en ASCII: misma fuente que el ramo, más grande, dentro de un marco +--+.
+// Las últimas letras escritas aún se están "descifrando" y pasan por la rampa de caracteres.
+function drawCaption(t) {
   const c = captionAt(t, CAPTIONS);
-  if (!c) {
-    el.style.opacity = 0;
-    return;
+  if (!c || c.opacity <= 0) return;
+  const full = CAPTIONS.find(x => x.from === c.from).text;
+  const k = CAPTION_SCALE[c.size];
+  const maxInner = Math.floor(Math.min(grid.cols, DESIGN_COLS) / k) - 4;
+  const key = `${c.from}|${maxInner}`;
+  if (!captionLayouts.has(key)) captionLayouts.set(key, layoutCaption(full, maxInner));
+  const layout = captionLayouts.get(key);
+
+  const { width, height } = canvas.getBoundingClientRect();
+  const cw = cell.w * k;
+  const chh = cell.h * k;
+  const x0 = (width - layout.width * cw) / 2;
+  const y0 = height * (c.pos === 'top' ? 0.06 : 0.58);
+  const shown = [...c.text].length;
+  const typing = shown < [...full].length;
+
+  ctx.globalAlpha = c.opacity;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(x0, y0, layout.width * cw, layout.height * chh);
+  ctx.font = `bold ${fontPx * k}px ${FONT}`;
+  ctx.shadowColor = 'rgba(255, 40, 80, 0.8)';
+  ctx.shadowBlur = cell.w * 1.5;
+  for (const cl of layout.cells) {
+    if (cl.k >= shown) continue;
+    let ch = cl.ch;
+    let color = PALETTE[MAT.WHITE][LEVELS - 1];
+    if (cl.k < 0) {
+      color = PALETTE[MAT.PETAL][5];
+    } else if (typing && cl.k >= shown - SCRAMBLE_TAIL) {
+      ch = SCRAMBLE[Math.floor(Math.random() * SCRAMBLE.length)];
+      color = PALETTE[MAT.PETAL][LEVELS - 1];
+    }
+    ctx.fillStyle = color;
+    ctx.fillText(ch, x0 + (cl.x + 0.5) * cw, y0 + (cl.y + 0.5) * chh);
   }
-  const typing = c.text.length < CAPTIONS.find(x => x.from === c.from).text.length;
-  const key = `${c.from}|${c.text}|${typing}`;
-  if (key !== captionKey) {
-    captionKey = key;
-    el.textContent = c.text;
-    el.className = `caption ${c.pos} ${c.size}${typing ? ' typing' : ''}`;
-  }
-  el.style.opacity = c.opacity;
+  ctx.shadowBlur = 0;
+  ctx.font = `bold ${fontPx}px ${FONT}`;
+  ctx.globalAlpha = 1;
 }
 
 function render(t) {
   const { width, height } = canvas.getBoundingClientRect();
   ctx.clearRect(0, 0, width, height);
   const phase = phaseAt(t, CUES);
-  $('frame').classList.toggle('finale', phase !== 'bouquet');
   if (phase === 'bouquet') {
     renderBouquet(t);
     drawGrid();
@@ -147,8 +186,7 @@ function render(t) {
   } else {
     drawLogo(t, phase === 'logo' ? 1 : 0.55);
   }
-  updateCaption(t);
-  $('progress').style.width = `${ramp(t, CUES.start, CUES.end) * 100}%`;
+  drawCaption(t);
 }
 
 // ---------- Música ----------
@@ -246,40 +284,6 @@ function warmUp(step = 0) {
   setTimeout(() => warmUp(step + 1), 0);
 }
 
-// ---------- TikTok: me gusta y doble toque ----------
-
-let likes = 8341;
-let liked = false;
-function like(force) {
-  if (liked && force) return;
-  liked = force || !liked;
-  likes += liked ? 1 : -1;
-  $('like').classList.toggle('liked', liked);
-  $('likes').textContent = likes.toLocaleString('es-ES');
-}
-
-let lastTap = { t: 0, x: 0, y: 0 };
-$('frame').addEventListener('pointerup', e => {
-  if (state === 'idle' || e.target.closest('button, .yt')) return;
-  const now = performance.now();
-  const near = Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40;
-  if (now - lastTap.t < 320 && near) {
-    const box = $('frame').getBoundingClientRect();
-    const heart = document.createElement('div');
-    heart.className = 'heart';
-    heart.textContent = '❤';
-    heart.style.left = `${e.clientX - box.left}px`;
-    heart.style.top = `${e.clientY - box.top}px`;
-    $('frame').append(heart);
-    heart.addEventListener('animationend', () => heart.remove());
-    like(true);
-    lastTap.t = 0;
-  } else {
-    lastTap = { t: now, x: e.clientX, y: e.clientY };
-  }
-});
-
-$('like').addEventListener('click', () => like(false));
 $('start').addEventListener('click', start);
 $('replay').addEventListener('click', start);
 window.addEventListener('resize', resize);
