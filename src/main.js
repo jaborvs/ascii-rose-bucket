@@ -2,11 +2,12 @@ import { SONG, CUES, CAPTIONS } from './config.js';
 import { createSongClock } from './clock.js';
 import { phaseAt, captionAt, ramp } from './timeline.js';
 import { buildBouquetModel } from './rose.js';
-import { createGrid, clearGrid, renderModel, gridCells, CELL_ASPECT } from './raster.js';
+import { createGrid, clearGrid, plot, renderModel, gridCells, CELL_ASPECT } from './raster.js';
 import { planMorph, particleAt } from './morph.js';
 import { MONCLOA, artCells } from './art.js';
 import { PALETTE, LEVELS, MAT } from './materials.js';
 import { layoutCaption } from './caption.js';
+import { giftCells } from './gift.js';
 import { createYouTubePlayer } from './player.js';
 
 // Caja de diseño: el ramo y el logo se dibujan para caber en DESIGN_COLS × DESIGN_ROWS celdas.
@@ -22,6 +23,8 @@ const FRAME_MS = 1000 / 30;
 const CAPTION_SCALE = { md: 1.8, lg: 2.3 }; // tamaño de letra del subtítulo, en celdas de la rejilla
 const SCRAMBLE = '.:-=+*#%@';
 const SCRAMBLE_TAIL = 3;
+const GIFT_BOTTOM = 0.8; // fila del suelo de la caja, en fracción de la altura
+const START_SCALE = 0.35; // tamaño del ramo cuando aún está dentro de la caja
 
 const $ = id => document.getElementById(id);
 const canvas = $('screen');
@@ -39,6 +42,7 @@ let morphPlan = null;
 let lastTick = performance.now();
 let lastRender = 0;
 let cell = { w: 0, h: 0 };
+let size = { width: 0, height: 0 };
 let fontPx = 10;
 const captionLayouts = new Map();
 
@@ -48,8 +52,10 @@ const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 // ---------- Canvas ----------
 
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  // DPR 2 basta para texto nítido; 3 multiplica por 2,25 el trabajo de pintado en móviles.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const { width, height } = canvas.getBoundingClientRect();
+  size = { width, height };
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -81,7 +87,7 @@ function drawGrid() {
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
       const i = r * grid.cols + c;
-      if (grid.z[i] > 0) drawChar(grid.ch[i], c, r, grid.mat[i], grid.lum[i]);
+      if (grid.z[i] > 0 && grid.ch[i] !== ' ') drawChar(grid.ch[i], c, r, grid.mat[i], grid.lum[i]);
     }
   }
 }
@@ -93,17 +99,45 @@ function bloomAt(t) {
   return Math.round(open * (BLOOM_STEPS - 1)) / (BLOOM_STEPS - 1);
 }
 
+const giftBottom = () => Math.round(grid.rows * GIFT_BOTTOM);
+
+function plotGift(opts) {
+  for (const c of giftCells({ cols: grid.cols, bottom: giftBottom(), ...opts })) {
+    plot(grid, c.x, c.y, Infinity, c.ch, c.mat, c.lum);
+  }
+}
+
+// El ramo sale de la caja: empieza pequeño y escondido bajo el suelo de la caja, y crece mientras sube.
 function renderBouquet(t) {
   const rise = easeOutCubic(ramp(t, CUES.riseStart, CUES.riseEnd));
   const pulse = t > CLIMAX ? Math.exp(-(t - CLIMAX) * 2.5) : 0;
+  const grow = START_SCALE + (1 - START_SCALE) * rise;
+  const hidden = (view.cy - giftBottom()) / (view.scale * START_SCALE * CELL_ASPECT) - 2.2;
   clearGrid(grid);
   renderModel(grid, buildBouquetModel(bloomAt(t)), {
     ...view,
     rotY: 0.55 * (t - CUES.start),
     tiltX: 0.6 + 0.05 * Math.sin(t * 0.7),
-    offsetY: -5 * (1 - rise),
-    scale: view.scale * (1 + 0.07 * pulse),
+    offsetY: hidden * (1 - rise),
+    scale: view.scale * grow * (1 + 0.07 * pulse),
   });
+
+  const fade = ramp(t, CUES.giftFadeStart, CUES.giftFadeEnd);
+  if (fade < 1) {
+    // Lo que queda por debajo de la caja no se ve; se va destapando mientras la caja se deshace.
+    const clip = giftBottom() + 1 + Math.round(fade * (grid.rows - giftBottom()));
+    grid.z.fill(0, Math.min(grid.rows, clip) * grid.cols);
+    plotGift({ lid: easeOutCubic(ramp(t, CUES.giftOpenStart, CUES.giftOpenEnd)), fade });
+  }
+}
+
+// Portada: la caja cerrada, con la tapa dando dos saltitos cada pocos segundos.
+function renderIdle(now) {
+  const p = (now / 1000) % 2.6;
+  clearGrid(grid);
+  plotGift({ bob: p < 0.12 || (p > 0.26 && p < 0.38) ? 1 : 0 });
+  ctx.clearRect(0, 0, size.width, size.height);
+  drawGrid();
 }
 
 function drawMorph(t) {
@@ -142,7 +176,7 @@ function drawCaption(t) {
   if (!captionLayouts.has(key)) captionLayouts.set(key, layoutCaption(full, maxInner));
   const layout = captionLayouts.get(key);
 
-  const { width, height } = canvas.getBoundingClientRect();
+  const { width, height } = size;
   const cw = cell.w * k;
   const chh = cell.h * k;
   const x0 = (width - layout.width * cw) / 2;
@@ -154,8 +188,6 @@ function drawCaption(t) {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
   ctx.fillRect(x0, y0, layout.width * cw, layout.height * chh);
   ctx.font = `bold ${fontPx * k}px ${FONT}`;
-  ctx.shadowColor = 'rgba(255, 40, 80, 0.8)';
-  ctx.shadowBlur = cell.w * 1.5;
   for (const cl of layout.cells) {
     if (cl.k >= shown) continue;
     let ch = cl.ch;
@@ -169,14 +201,12 @@ function drawCaption(t) {
     ctx.fillStyle = color;
     ctx.fillText(ch, x0 + (cl.x + 0.5) * cw, y0 + (cl.y + 0.5) * chh);
   }
-  ctx.shadowBlur = 0;
   ctx.font = `bold ${fontPx}px ${FONT}`;
   ctx.globalAlpha = 1;
 }
 
 function render(t) {
-  const { width, height } = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, size.width, size.height);
   const phase = phaseAt(t, CUES);
   if (phase === 'bouquet') {
     renderBouquet(t);
@@ -203,7 +233,7 @@ function goSilent(err) {
   player = null;
   silent = true;
   $('yt-wrap').classList.remove('show');
-  showNotice(`🔇 No se ha podido cargar la música (${err.message}). Pon «Coming Up Roses» de Harry Styles de fondo 🌹`);
+  showNotice(`No se ha podido cargar la música (${err.message}). Pon «Coming Up Roses» de Harry Styles de fondo.`);
 }
 
 createYouTubePlayer({ elementId: 'yt', videoId: SONG.videoId, start: CUES.start, onError: goSilent })
@@ -270,9 +300,10 @@ function tick(now) {
     if (clock.time >= CUES.end) finish();
   }
 
-  if (state !== 'idle' && now - lastRender >= FRAME_MS) {
+  if (now - lastRender >= FRAME_MS) {
     lastRender = now;
-    render(clock.time);
+    if (state === 'idle') renderIdle(now);
+    else render(clock.time);
   }
   requestAnimationFrame(tick);
 }

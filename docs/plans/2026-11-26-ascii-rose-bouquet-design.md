@@ -1,8 +1,8 @@
 # Ramo de rosas ASCII para María — diseño
 
 ## Objetivo
-Página web a pantalla completa que se abre desde un enlace en el móvil o en el ordenador:
-ramo de rosas ASCII en 3D que sube desde abajo, florece y gira, sincronizado con
+Página web a pantalla completa, en ASCII minimalista, que se abre desde un enlace en el móvil o en el ordenador:
+una caja de regalo se abre y de ella sale un ramo de rosas ASCII en 3D que florece y gira, sincronizado con
 "Coming Up Roses" (Harry Styles) desde la sección instrumental previa a "It's only me and you";
 mensajes de orgullo; el ramo se deshace en caracteres que forman el Palacio de la Moncloa + "LA MONCLOA";
 cierre con "¡Muchas gracias por tu contribución!".
@@ -36,4 +36,5 @@ cierre con "¡Muchas gracias por tu contribución!".
 | `src/morph.js` | Plan de partículas ramo → logo | sí |
 | `src/art.js` | Arte ASCII de la Moncloa con colores | sí |
 | `src/caption.js` | Maquetación del subtítulo ASCII: ajuste de línea y marco | sí |
+| `src/gift.js` | Caja de regalo ASCII: tapa que sale volando, cuerpo que tapa el ramo y se deshace | sí |
 | `src/player.js`, `src/main.js` | YouTube, bucle de render, escenas | navegador |

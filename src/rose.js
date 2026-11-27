@@ -83,7 +83,8 @@ function petalShade(x, v) {
   return Math.min(1, Math.max(0, (u - 0.5) * 2)) * (0.4 + 0.6 * x);
 }
 
-export function roseGeometry(open, { nx = 16, nt = 520 } = {}) {
+// Muestreo justo para no dejar huecos a ~25 celdas de ancho: más puntos solo cuestan tiempo por fotograma.
+export function roseGeometry(open, { nx = 10, nt = 300 } = {}) {
   const buf = createBuffer();
   surface(buf, (x, v) => rosePoint(x, v, open), nx, nt, MAT.PETAL, petalShade);
   return finish(buf);
@@ -171,7 +172,7 @@ export function buildBouquetModel(open) {
     const y = CONE.bottom + (CONE.top - CONE.bottom) * v + 0.12 * Math.abs(Math.sin(3 * th)) * v ** 4;
     const r = coneRadius(y) * (1 + 0.05 * Math.sin(10 * th));
     return [r * Math.cos(th), y, r * Math.sin(th)];
-  }, 150, 45, MAT.WRAP);
+  }, 100, 26, MAT.WRAP);
 
   // Lazo: cinta alrededor del cono y dos lazadas delante (z negativa mira a la cámara).
   const bandY = -0.55;

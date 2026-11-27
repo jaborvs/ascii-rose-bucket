@@ -1,8 +1,9 @@
-# 🌹 Para María
+# Para María
 
-Animación en ASCII a pantalla completa. Un ramo de rosas en 3D sube desde abajo, se abre y gira mientras suena
-"Coming Up Roses" de Harry Styles, desde el instrumental anterior a "It's only me and you". Los mensajes también
-salen en ASCII, el ramo se deshace en caracteres que forman la Moncloa y al final aparece "¡Muchas gracias por tu contribución!".
+Animación en ASCII minimalista a pantalla completa. Al tocar la portada se abre una caja de regalo y de ella sale
+un ramo de rosas en 3D que se abre y gira mientras suena "Coming Up Roses" de Harry Styles, desde el instrumental
+anterior a "It's only me and you". Los mensajes también salen en ASCII, el ramo se deshace en caracteres que forman
+la Moncloa y al final aparece "¡Muchas gracias por tu contribución!".
 Dura unos 87 segundos.
 
 ## Cómo verlo
@@ -27,7 +28,7 @@ La página lleva `noindex` para que no aparezca en buscadores. Aun así, la URL 
 
 ### Al abrirlo
 
-- Primero sale una portada: "Tienes un regalo, María". Al tocarla empieza todo (los móviles exigen un toque para reproducir sonido).
+- Primero sale la caja de regalo cerrada: "para María". Al tocar empieza todo (los móviles exigen un toque para reproducir sonido).
 - Si el móvil no deja arrancar la música desde ese toque (pasa en algunos iPhone), aparece el reproductor de YouTube
   para pulsar ▶. Después desaparece y la animación sigue sincronizada.
 - Al terminar aparece "↻ Ver otra vez".

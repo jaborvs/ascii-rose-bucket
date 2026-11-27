@@ -68,6 +68,8 @@ export function renderModel(g, model, { rotY, tiltX, offsetY, scale, cx, cy }) {
     const c = Math.round(cx + scale * x1 * persp);
     const r = Math.round(cy - scale * CELL_ASPECT * (y2 + offsetY) * persp);
     if (c < 0 || r < 0 || c >= g.cols || r >= g.rows) continue;
+    // Prueba de profundidad antes de iluminar: la mayoría de puntos quedan tapados.
+    if (ooz <= g.z[r * g.cols + c]) continue;
 
     const nx = nrm[i * 3], ny = nrm[i * 3 + 1], nz = nrm[i * 3 + 2];
     const nx1 = nx * ca + nz * sa;

@@ -5,29 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#000000">
-  <meta property="og:title" content="🌹 Para María">
-  <meta property="og:description" content="Toca para abrirlo (con sonido 🔊)">
-  <title>🌹 Para María</title>
+  <meta property="og:title" content="Para María">
+  <meta property="og:description" content="Toca para abrirlo (con sonido)">
+  <title>Para María</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="frame" id="frame">
-    <canvas id="screen" aria-label="Ramo de rosas en ASCII"></canvas>
+    <canvas id="screen" aria-label="Animación en ASCII"></canvas>
 
     <div class="yt" id="yt-wrap">
-      <p>Toca ▶ en el vídeo para que suene la música</p>
+      <p>toca play en el vídeo para que suene la música</p>
       <div class="yt-box"><div id="yt"></div></div>
     </div>
 
     <div class="notice" id="notice" hidden></div>
 
-    <button class="start" id="start" type="button">
-      <span class="rose">🌹</span>
-      <span class="big">Tienes un regalo, María</span>
-      <span class="small">Toca para abrirlo · sube el volumen 🔊</span>
+    <button class="start" id="start" type="button" aria-label="Abrir el regalo">
+      <span class="label">
+        <span class="big">para María</span>
+        <span class="small">[ toca para abrir · con sonido ]</span>
+      </span>
     </button>
 
-    <button class="replay" id="replay" type="button" hidden>↻ Ver otra vez</button>
+    <button class="replay" id="replay" type="button" hidden>[ ver otra vez ]</button>
   </main>
   <script type="module" src="src/main.js"></script>
 </body>
